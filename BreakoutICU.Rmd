@@ -1,0 +1,66 @@
+---
+title: "BreakoutICU"
+author: "Deniz Avci"
+date: "2025-06-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(rattle)
+icu_data = read.csv("ICU.csv")
+icu_train = icu_data[1:150,]
+icu_test = icu_data[151:200,]
+attach(icu_train)
+
+my_tree = rpart(formula = Survive ~ Age + AgeGroup + Sex + Infection + SysBP + 
+                  Pulse + Emergency, data = icu_train, method = "class", cp = 0.015)
+
+rpart.plot(my_tree)
+```
+
+Those with systolic bloodpressure below 91 have a lower survival rate (33%) than
+those with higher than 91 (82%). Additionaly, patients who didnt consulted the 
+emergency room prior to thier ICU visit had a 96% survival rate, whereas those who
+did, ex. for a gunshot wound, car crash, or sudden event, had a 75% rate.
+
+```{r}
+my_prediction = predict(my_tree, icu_test, type = "class")
+table(my_prediction, icu_test$Survive)
+mean(my_prediction == icu_test$Survive)
+```
+Here we can see that the 0.82 represents the accuracy of our model: 82% correct.
+
+```{r}
+library(randomForest)
+my_forest <- randomForest(factor(Survive) ~ Age + AgeGroup + Sex + Infection + SysBP
+                          + Pulse + Emergency, data= icu_train, 
+                          importance = TRUE, ntree = 1000)
+
+varImpPlot(my_forest)
+```
+By focusing on the MeanDecreaseAccuracy plot, the Infection predictor stands out
+as a variable of least importance, meaning that its removal from the model could
+improve efficiency if it truly has no impact on our accuracy result. We test this
+below.
+
+```{r}
+my_tree2 = rpart(formula = Survive ~ Age + AgeGroup + Sex + SysBP + 
+                  Pulse + Emergency, data = icu_train, method = "class", cp = 0.015)
+
+rpart.plot(my_tree2)
+```
+
+```{r}
+my_prediction2 = predict(my_tree2, icu_test, type = "class")
+table(my_prediction2, icu_test$Survive)
+mean(my_prediction2 == icu_test$Survive)
+```
+Because there was no change in %accuracy between the first run and this run, the 
+removal of predictor: "Infection" does not impact the data substantially, therefore
+its removal increases the efficiency of the program.
